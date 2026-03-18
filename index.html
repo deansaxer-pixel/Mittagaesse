@@ -2,6 +2,10 @@
 <html>
 <head>
 <meta charset="UTF-8">
+
+<!-- 🔥 wichtig für Mobile -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>🎰 Mittagässe</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -13,11 +17,13 @@ font-family:Arial;
 background:linear-gradient(180deg,#0b0f1a,#111827);
 color:white;
 text-align:center;
+margin:0;
+padding:10px;
 }
 
 h1{
-margin-top:20px;
-font-size:40px;
+margin-top:10px;
+font-size:28px;
 color:#facc15;
 text-shadow:0 0 10px #facc15;
 }
@@ -25,58 +31,75 @@ text-shadow:0 0 10px #facc15;
 /* SLOT MACHINE */
 
 .slot-machine{
-margin:30px auto;
-padding:20px;
+margin:20px auto;
+padding:15px;
 background:#1f2937;
 border-radius:20px;
-box-shadow:0 0 30px rgba(0,0,0,0.8);
-width:320px;
+box-shadow:0 0 20px rgba(0,0,0,0.8);
+width:100%;
+max-width:350px;
 }
 
 .reels{
 display:flex;
 justify-content:space-between;
+gap:8px;
 margin:20px 0;
 }
 
 .reel{
 background:#000;
-width:90px;
-height:90px;
+flex:1;
+height:70px;
 display:flex;
 align-items:center;
 justify-content:center;
-font-size:18px;
+font-size:14px;
 border-radius:10px;
 box-shadow:inset 0 0 10px #000;
-text-align:center;
 padding:5px;
+text-align:center;
 }
 
 /* BUTTON */
 
 button{
-padding:15px 30px;
-font-size:20px;
+width:100%;
+max-width:300px;
+padding:15px;
+font-size:18px;
 border:none;
 border-radius:10px;
 cursor:pointer;
 background:#facc15;
 color:black;
 font-weight:bold;
-box-shadow:0 0 15px #facc15;
+box-shadow:0 0 10px #facc15;
 }
 
-button:hover{
-background:#fde047;
+button:active{
+transform:scale(0.95);
 }
 
 /* SELECT */
 
 select{
-padding:10px;
+width:100%;
+max-width:300px;
+padding:12px;
 font-size:16px;
 margin-top:10px;
+border-radius:8px;
+}
+
+/* WINNER */
+
+#winner{
+font-size:28px;
+margin-top:20px;
+color:#22c55e;
+text-shadow:0 0 10px #22c55e, 0 0 20px #22c55e;
+display:none;
 }
 
 /* CHART */
@@ -84,17 +107,9 @@ margin-top:10px;
 canvas{
 background:white;
 border-radius:10px;
-margin-top:30px;
-}
-
-/* 🏆 WINNER STYLE */
-
-#winner{
-font-size:40px;
-margin-top:30px;
-color:#22c55e;
-text-shadow:0 0 15px #22c55e, 0 0 30px #22c55e;
-display:none;
+margin-top:20px;
+width:100% !important;
+height:auto !important;
 }
 
 </style>
@@ -106,14 +121,14 @@ display:none;
 
 <select id="user">
 <option>Dean</option>
-<option>Borghi</option>
+<option>Borgi</option>
 <option>Claudio</option>
 <option>Düüdi</option>
 <option>Hannes</option>
 <option>Fabio</option>
-<option>Patrick</option>
-<option>Noah</option>
 <option>Jonas</option>
+<option>Noah</option>
+<option>Patrick</option>
 <option>Christian</option>
 </select>
 
@@ -125,14 +140,13 @@ display:none;
 <div class="reel" id="r3">🍽️</div>
 </div>
 
-<button onclick="spin()">SPIN</button>
+<button onclick="spin()">🎰 DREHEN</button>
 
 </div>
 
-<!-- 🏆 Gewinner Anzeige -->
 <div id="winner"></div>
 
-<canvas id="chart" width="600" height="300"></canvas>
+<canvas id="chart"></canvas>
 
 <script>
 
@@ -142,8 +156,8 @@ const states=[
 ]
 
 const users=[
-"Dean","Borghi","Claudio","Hannes","Fabio",
-"Patrick","Düüdi","Noah","Christian","Jonas"
+"Dean","Borghi","Claudio","Düüdi","Hannes",
+"Fabio","Jonas","Noah","Patrick","Christian"
 ]
 
 let results=JSON.parse(localStorage.getItem("results"))||[]
@@ -160,7 +174,7 @@ function spin(){
 let user=document.getElementById("user").value
 
 if(plays[user]==today()){
-alert("Du Schlingel häsch Hüt schu dreiht!")
+alert("Du hast heute schon gedreht")
 return
 }
 
@@ -208,26 +222,22 @@ states.forEach(s=>count[s]=0)
 
 results.forEach(r=>count[r]++)
 
-let canvas=document.getElementById("chart")
-let ctx=canvas.getContext("2d")
+let ctx=document.getElementById("chart").getContext("2d")
 
 if(chartInstance){
 chartInstance.destroy()
 }
-
-canvas.width=600
 
 chartInstance=new Chart(ctx,{
 type:"bar",
 data:{
 labels:Object.keys(count),
 datasets:[{
-label:"Anzahl",
 data:Object.values(count)
 }]
 },
 options:{
-responsive:false,
+responsive:true,
 scales:{
 y:{beginAtZero:true}
 },
@@ -238,8 +248,6 @@ legend:{display:false}
 })
 
 }
-
-/* 🏆 Gewinner Logik */
 
 function checkWinner(){
 
@@ -252,13 +260,11 @@ if(playedToday < users.length){
 return
 }
 
-/* zählen */
 let count={}
 states.forEach(s=>count[s]=0)
 
 results.forEach(r=>count[r]++)
 
-/* bestes finden */
 let winnerState = Object.keys(count).reduce((a,b)=>
 count[a] > count[b] ? a : b
 )
