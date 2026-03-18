@@ -87,6 +87,16 @@ border-radius:10px;
 margin-top:30px;
 }
 
+/* 🏆 WINNER STYLE */
+
+#winner{
+font-size:40px;
+margin-top:30px;
+color:#22c55e;
+text-shadow:0 0 15px #22c55e, 0 0 30px #22c55e;
+display:none;
+}
+
 </style>
 </head>
 
@@ -99,12 +109,12 @@ margin-top:30px;
 <option>Borghi</option>
 <option>Claudio</option>
 <option>Düüdi</option>
-<option>Fabio</option>
 <option>Hannes</option>
+<option>Fabio</option>
 <option>Patrick</option>
 <option>Noah</option>
 <option>Jonas</option>
-<option>Claudio</option>
+<option>Christian</option>
 </select>
 
 <div class="slot-machine">
@@ -119,6 +129,9 @@ margin-top:30px;
 
 </div>
 
+<!-- 🏆 Gewinner Anzeige -->
+<div id="winner"></div>
+
 <canvas id="chart" width="600" height="300"></canvas>
 
 <script>
@@ -128,11 +141,15 @@ const states=[
 "Krüüz","Pizza","Döner","Mägges"
 ]
 
+const users=[
+"Dean","Borghi","Claudio","Hannes","Fabio",
+"Patrick","Düüdi","Noah","Christian","Jonas"
+]
+
 let results=JSON.parse(localStorage.getItem("results"))||[]
 let plays=JSON.parse(localStorage.getItem("plays"))||{}
 
-/* 🔥 Chart Instanz */
-let chartInstance = null
+let chartInstance=null
 
 function today(){
 return new Date().toISOString().slice(0,10)
@@ -143,7 +160,7 @@ function spin(){
 let user=document.getElementById("user").value
 
 if(plays[user]==today()){
-alert("Du Schlingel häsch hüt schu dreiht!")
+alert("Du Schlingel häsch Hüt schu dreiht!")
 return
 }
 
@@ -176,6 +193,7 @@ localStorage.setItem("results",JSON.stringify(results))
 localStorage.setItem("plays",JSON.stringify(plays))
 
 updateChart()
+checkWinner()
 
 }
 
@@ -186,24 +204,20 @@ updateChart()
 function updateChart(){
 
 let count={}
-
 states.forEach(s=>count[s]=0)
 
 results.forEach(r=>count[r]++)
 
-/* Canvas holen */
 let canvas=document.getElementById("chart")
 let ctx=canvas.getContext("2d")
 
-/* 🔥 altes Chart löschen */
 if(chartInstance){
 chartInstance.destroy()
 }
 
-/* 🔥 Canvas reset */
-canvas.width = 600
+canvas.width=600
 
-chartInstance = new Chart(ctx,{
+chartInstance=new Chart(ctx,{
 type:"bar",
 data:{
 labels:Object.keys(count),
@@ -215,9 +229,7 @@ data:Object.values(count)
 options:{
 responsive:false,
 scales:{
-y:{
-beginAtZero:true
-}
+y:{beginAtZero:true}
 },
 plugins:{
 legend:{display:false}
@@ -227,8 +239,39 @@ legend:{display:false}
 
 }
 
-/* Initial laden */
+/* 🏆 Gewinner Logik */
+
+function checkWinner(){
+
+let todayDate=today()
+
+let playedToday = Object.values(plays)
+.filter(d=>d===todayDate).length
+
+if(playedToday < users.length){
+return
+}
+
+/* zählen */
+let count={}
+states.forEach(s=>count[s]=0)
+
+results.forEach(r=>count[r]++)
+
+/* bestes finden */
+let winnerState = Object.keys(count).reduce((a,b)=>
+count[a] > count[b] ? a : b
+)
+
+let winnerDiv=document.getElementById("winner")
+
+winnerDiv.style.display="block"
+winnerDiv.innerText="🏆 GEWINNER: " + winnerState.toUpperCase()
+
+}
+
 updateChart()
+checkWinner()
 
 </script>
 
