@@ -171,7 +171,38 @@ plays[user]=today()
 localStorage.setItem("results",JSON.stringify(results))
 localStorage.setItem("plays",JSON.stringify(plays))
 
-updateChart()
+let chartInstance = null;
+
+function updateChart(){
+
+let count={}
+
+states.forEach(s=>count[s]=0)
+
+results.forEach(r=>count[r]++)
+
+
+if(chartInstance){
+chartInstance.destroy()
+}
+
+/* Neues Chart erstellen */
+chartInstance = new Chart(document.getElementById("chart"),{
+type:"bar",
+data:{
+labels:Object.keys(count),
+datasets:[{
+data:Object.values(count)
+}]
+},
+options:{
+plugins:{
+legend:{display:false}
+}
+}
+})
+
+}
 
 }
 
@@ -204,7 +235,38 @@ legend:{display:false}
 
 }
 
-updateChart()
+let chartInstance = null;
+
+function updateChart(){
+
+let count={}
+
+states.forEach(s=>count[s]=0)
+
+results.forEach(r=>count[r]++)
+
+
+if(chartInstance){
+chartInstance.destroy()
+}
+
+/* Neues Chart erstellen */
+chartInstance = new Chart(document.getElementById("chart"),{
+type:"bar",
+data:{
+labels:Object.keys(count),
+datasets:[{
+data:Object.values(count)
+}]
+},
+options:{
+plugins:{
+legend:{display:false}
+}
+}
+})
+
+}
 
 </script>
 
