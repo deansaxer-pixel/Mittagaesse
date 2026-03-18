@@ -138,7 +138,7 @@ function spin(){
 let user=document.getElementById("user").value
 
 if(plays[user]==today()){
-alert("Du hast heute schon gedreht")
+alert("Du Schlingel hast heute schon gedreht")
 return
 }
 
@@ -173,68 +173,6 @@ localStorage.setItem("plays",JSON.stringify(plays))
 
 let chartInstance = null;
 
-function updateChart(){
-
-let count={}
-
-states.forEach(s=>count[s]=0)
-
-results.forEach(r=>count[r]++)
-
-
-if(chartInstance){
-chartInstance.destroy()
-}
-
-/* Neues Chart erstellen */
-chartInstance = new Chart(document.getElementById("chart"),{
-type:"bar",
-data:{
-labels:Object.keys(count),
-datasets:[{
-data:Object.values(count)
-}]
-},
-options:{
-plugins:{
-legend:{display:false}
-}
-}
-})
-
-}
-
-}
-
-},80)
-
-}
-
-function updateChart(){
-
-let count={}
-
-states.forEach(s=>count[s]=0)
-
-results.forEach(r=>count[r]++)
-
-new Chart(document.getElementById("chart"),{
-type:"bar",
-data:{
-labels:Object.keys(count),
-datasets:[{
-data:Object.values(count)
-}]
-},
-options:{
-plugins:{
-legend:{display:false}
-}
-}
-})
-
-}
-
 let chartInstance = null;
 
 function updateChart(){
@@ -245,21 +183,33 @@ states.forEach(s=>count[s]=0)
 
 results.forEach(r=>count[r]++)
 
+let ctx = document.getElementById("chart").getContext("2d")
 
+/* 🔥 altes Chart löschen */
 if(chartInstance){
 chartInstance.destroy()
 }
 
-/* Neues Chart erstellen */
-chartInstance = new Chart(document.getElementById("chart"),{
+/* 🔥 Canvas zurücksetzen (wichtig!) */
+document.getElementById("chart").width = 600
+
+/* neues Chart */
+chartInstance = new Chart(ctx,{
 type:"bar",
 data:{
 labels:Object.keys(count),
 datasets:[{
+label:"Anzahl",
 data:Object.values(count)
 }]
 },
 options:{
+responsive:false,
+scales:{
+y:{
+beginAtZero:true
+}
+},
 plugins:{
 legend:{display:false}
 }
@@ -267,6 +217,13 @@ legend:{display:false}
 })
 
 }
+
+let count={}
+
+states.forEach(s=>count[s]=0)
+
+results.forEach(r=>count[r]++)
+
 
 </script>
 
