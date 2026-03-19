@@ -4,20 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🎰 Mittagässe</title>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
-body{font-family:Arial;background:linear-gradient(180deg,#0b0f1a,#111827);color:white;text-align:center;margin:0;padding:10px;}
-h1{margin-top:10px;font-size:28px;color:#facc15;text-shadow:0 0 10px #facc15;}
-.slot-machine{margin:20px auto;padding:15px;background:#1f2937;border-radius:20px;box-shadow:0 0 20px rgba(0,0,0,0.8);width:100%;max-width:350px;}
-.reels{display:flex;justify-content:space-between;gap:8px;margin:20px 0;}
-.reel{background:#000;flex:1;height:70px;display:flex;align-items:center;justify-content:center;font-size:14px;border-radius:10px;box-shadow:inset 0 0 10px #000;padding:5px;text-align:center;}
-button{width:100%;max-width:300px;padding:15px;font-size:18px;border:none;border-radius:10px;cursor:pointer;background:#facc15;color:black;font-weight:bold;box-shadow:0 0 10px #facc15;}
-button:active{transform:scale(0.95);}
-select{width:100%;max-width:300px;padding:12px;font-size:16px;margin-top:10px;border-radius:8px;}
-#winner{font-size:28px;margin-top:20px;color:#22c55e;text-shadow:0 0 10px #22c55e, 0 0 20px #22c55e;display:none;}
-canvas{background:white;border-radius:10px;margin-top:20px;width:100% !important;height:auto !important;}
+body{font-family:Arial;background:#0b0f1a;color:white;text-align:center;padding:10px;}
+h1{color:#facc15;}
+.slot-machine{margin:20px auto;padding:15px;background:#1f2937;border-radius:20px;max-width:350px;}
+.reels{display:flex;gap:8px;margin:20px 0;}
+.reel{flex:1;height:70px;background:black;display:flex;align-items:center;justify-content:center;border-radius:10px;}
+button{width:100%;padding:15px;font-size:18px;background:#facc15;border:none;border-radius:10px;}
+canvas{background:white;margin-top:20px;border-radius:10px;}
+#winner{margin-top:20px;font-size:24px;color:#22c55e;display:none;}
 </style>
 </head>
+
 <body>
 
 <h1>🎰 Mittagässe</h1>
@@ -49,6 +50,7 @@ canvas{background:white;border-radius:10px;margin-top:20px;width:100% !important
 <canvas id="chart"></canvas>
 
 <script type="module">
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -63,88 +65,148 @@ const firebaseConfig = {
   measurementId: "G-ZWNQG0XNE2"
 };
 
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const states = ["Sterne","S'Gocht","Wiesetal","Thai","Krüüz","Pizza","Döner","Mägges"];
+/* STATES */
+const states=["Sterne","S'Gocht","Wiesetal","Thai","Krüüz","Pizza","Döner","Mägges"];
 const users=[
 "Dean","Borghi","Claudio","Düüdi","Hannes",
 "Fabio","Jonas","Noah","Patrick","Christian"
 ]
 
-let chartInstance = null;
 
-function today(){ 
-  const d = new Date(); 
-  return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,'0')+"-"+String(d.getUTCDate()).padStart(2,'0');
+let chart;
+
+/* DATE */
+function today(){
+let d=new Date()
+return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,'0')+"-"+String(d.getUTCDate()).padStart(2,'0')
 }
 
-// Chart aktualisieren
+/* CHART */
 function updateChart(count){
-  const ctx = document.getElementById("chart").getContext("2d");
-  if(chartInstance) chartInstance.destroy();
-  chartInstance = new Chart(ctx,{
-    type:"bar",
-    data:{labels:Object.keys(count), datasets:[{data:Object.values(count)}]},
-    options:{responsive:true,scales:{y:{beginAtZero:true}}, plugins:{legend:{display:false}}}
-  });
+
+let ctx=document.getElementById("chart").getContext("2d")
+
+if(chart) chart.destroy()
+
+chart=new Chart(ctx,{
+type:"bar",
+data:{
+labels:states,
+datasets:[{data:states.map(s=>count[s])}]
+},
+options:{
+responsive:true,
+scales:{y:{beginAtZero:true}},
+plugins:{legend:{display:false}}
+}
+})
 }
 
-// Spins laden und Chart aktualisieren
+/* LOAD */
 async function loadStats(){
-  const snap = await getDocs(collection(db,"spins"));
-  let count = {}; states.forEach(s=>count[s]=0);
-  let playedUsers = new Set();
-  snap.forEach(doc=>{
-    const d = doc.data();
-    if(d.date === today()){
-      count[d.result]++;
-      playedUsers.add(d.user);
-    }
-  });
-  updateChart(count);
-  checkWinner(count, playedUsers);
+
+let snap=await getDocs(collection(db,"spins"))
+
+let count={}
+states.forEach(s=>count[s]=0)
+
+let playedUsers=new Set()
+
+snap.forEach(doc=>{
+let d=doc.data()
+
+if(d.date===today()){
+count[d.result]++
+playedUsers.add(d.user)
+}
+})
+
+updateChart(count)
+checkWinner(count,playedUsers)
+
 }
 
-// Gewinner prüfen
-function checkWinner(count, playedUsers){
-  if(playedUsers.size < users.length) return;
-  const winner = Object.keys(count).reduce((a,b)=>count[a]>count[b]?a:b);
-  const div = document.getElementById("winner");
-  div.style.display = "block";
-  div.innerText = "🏆 GEWINNER: "+winner.toUpperCase();
+/* WINNER */
+function checkWinner(count,playedUsers){
+
+if(playedUsers.size<users.length) return
+
+let winner=states.reduce((a,b)=>count[a]>count[b]?a:b)
+
+let div=document.getElementById("winner")
+div.style.display="block"
+div.innerText="🏆 GEWINNER: "+winner.toUpperCase()
+
 }
 
-// Spin-Button
-document.getElementById("spinBtn").addEventListener("click", async ()=>{
-  const user = document.getElementById("user").value;
-  const btn = document.getElementById("spinBtn");
-  const docRef = doc(db,"spins",user+"_"+today());
-  const docSnap = await getDoc(docRef);
-  if(docSnap.exists()){ alert("Du Schlingel häsch hüt schu dreiht!"); return; }
+/* SPIN */
+document.getElementById("spinBtn").addEventListener("click",async()=>{
 
-  btn.disabled = true;
-  const reels = ["r1","r2","r3"];
-  let spins=0;
+let user=document.getElementById("user").value
+let btn=document.getElementById("spinBtn")
 
-  const anim = setInterval(async ()=>{
-    reels.forEach(id=>{document.getElementById(id).innerText = states[Math.floor(Math.random()*states.length)];});
-    spins++;
-    if(spins>20){
-      clearInterval(anim);
-      const result = states[Math.floor(Math.random()*states.length)];
-      reels.forEach(id=>{document.getElementById(id).innerText = result;});
-      await setDoc(doc(db,"spins",user+"_"+today()), {user,result,date:today()});
-      await loadStats();
-      btn.disabled = false;
-    }
-  },80);
-});
+let id=today()+"_"+user
 
-// Chart alle 5 Sekunden aktualisieren
-setInterval(loadStats,5000);
-loadStats();
+let docRef=doc(db,"spins",id)
+let docSnap=await getDoc(docRef)
+
+if(docSnap.exists()){
+alert("Du Schlingel häsch hüt schu dreiht!")
+return
+}
+
+btn.disabled=true
+
+let reels=["r1","r2","r3"]
+let spins=0
+
+let anim=setInterval(async()=>{
+
+reels.forEach(id=>{
+document.getElementById(id).innerText=
+states[Math.floor(Math.random()*states.length)]
+})
+
+spins++
+
+if(spins>20){
+
+clearInterval(anim)
+
+let result=states[Math.floor(Math.random()*states.length)]
+
+reels.forEach(id=>{
+document.getElementById(id).innerText=result
+})
+
+/* SAVE */
+await setDoc(docRef,{
+user:user,
+result:result,
+date:today()
+})
+
+await loadStats()
+
+btn.disabled=false
+
+}
+
+},80)
+
+})
+
+/* AUTO REFRESH */
+setInterval(loadStats,5000)
+
+/* START */
+loadStats()
 
 </script>
+
 </body>
 </html>
