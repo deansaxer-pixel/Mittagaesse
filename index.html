@@ -45,8 +45,6 @@ canvas{background:white;margin-top:20px;border-radius:10px;}
 </div>
 <button id="spinBtn">🎰 DREHEN</button>
 </div>
-<div id="remaining"
-style="margin-top:10px;font-size:18px;color:#facc15;"></div>
 
 <div id="winner"></div>
 <canvas id="chart"></canvas>
@@ -71,16 +69,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-function updateRemaining(spins){
-let remaining = users.length - Object.keys(spins || {}).lenght
-let div = 
-document.getElementById("remaining")
-if(remaining >0){
-div.innerText = "Noch" + remaining + "Person(en) fehlen"
-}else{
-div.innerText = "Alle haben gedreht!"
-}
-}
 /* DATA */
 const states=["Sterne","S'Gocht","Wiesetal","Thai","Krüüz","Pizza","Döner","Mägges"];
 const users=[
@@ -135,7 +123,6 @@ let data=snap.exists()?snap.data():{spins:{}}
 
 updateChart(data.spins)
 checkWinner(data.spins)
-updateRemaining(data.spins)
 
 }
 
