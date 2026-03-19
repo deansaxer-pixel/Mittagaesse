@@ -9,9 +9,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script type="module">
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 /* 🔥 DEINE FIREBASE CONFIG */
 const firebaseConfig = {
@@ -28,18 +27,18 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-window.db=db
-window.collection=collection
-window.addDoc=addDoc
-window.getDocs=getDocs
-
+window.db = db;
+window.collection = collection;
+window.addDoc = addDoc;
+window.getDocs = getDocs;
+window.query = query;
+window.where = where;
 </script>
 
 <style>
-
 body{
 font-family:Arial;
-background:linear-gradient(180deg,#0b0f1a,#111827);
+background:#0b0f1a;
 color:white;
 text-align:center;
 margin:0;
@@ -47,9 +46,7 @@ padding:10px;
 }
 
 h1{
-font-size:28px;
 color:#facc15;
-text-shadow:0 0 10px #facc15;
 }
 
 .slot-machine{
@@ -73,34 +70,28 @@ display:flex;
 align-items:center;
 justify-content:center;
 border-radius:10px;
-font-size:14px;
 }
 
 button{
 width:100%;
 padding:15px;
 font-size:18px;
+background:#facc15;
 border:none;
 border-radius:10px;
-background:#facc15;
-margin-top:10px;
 }
 
 #winner{
-font-size:28px;
 margin-top:20px;
+font-size:24px;
 color:#22c55e;
-text-shadow:0 0 15px #22c55e;
 display:none;
 }
 
 canvas{
 background:white;
-border-radius:10px;
 margin-top:20px;
-width:100% !important;
 }
-
 </style>
 </head>
 
@@ -123,19 +114,15 @@ width:100% !important;
 
 
 <div class="slot-machine">
-
 <div class="reels">
 <div class="reel" id="r1">🍽️</div>
 <div class="reel" id="r2">🍽️</div>
 <div class="reel" id="r3">🍽️</div>
 </div>
-
-<button onclick="">🎰 DREHEN</button>
-
+<button id="spinBtn" onclick="spin()">🎰 DREHEN</button>
 </div>
 
 <div id="winner"></div>
-
 <canvas id="chart"></canvas>
 
 <script>
@@ -150,105 +137,19 @@ const users=[
 "Fabio","Jonas","Noah","Patrick","Christian"
 ]
 
-
 let chartInstance=null
 
-/* 🔒 UTC Datum (sicher gegen Tricks) */
+/* 🔒 UTC Datum */
 function today(){
-let d = new Date()
-return d.getUTCFullYear() + "-" +
-String(d.getUTCMonth()+1).padStart(2,'0') + "-" +
-String(d.getUTCDate()).padStart(2,'0')
+let d=new Date()
+return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,'0')+"-"+String(d.getUTCDate()).padStart(2,'0')
 }
 
-/* 🎰 SPIN */
-
-async function spin(){
-
-let user=document.getElementById("user").value
-let todayDate = today()
-
-/* 🔒 Prüfen ob schon gespielt */
-
-let q = window.query(
-window.collection(window.db,"spins"),
-window.where("user","==",user),
-window.where("date","==",todayDate)
-)
-
-let snap = await window.getDocs(q)
-
-if(!snap.empty){
-alert("Du Schlingel häsch hüt schu dreiht!")
-return
-}
-
-/* 🔘 Button deaktivieren */
-let btn = document.querySelector("button")
-btn.disabled = true
-
-/* 🎰 Animation */
-
-let reels=["r1","r2","r3"]
-let spins=0
-
-let anim=setInterval(()=>{
-
-reels.forEach(id=>{
-document.getElementById(id).innerText=
-states[Math.floor(Math.random()*states.length)]
-})
-
-spins++
-
-if(spins>20){
-
-clearInterval(anim)
-
-let result=states[Math.floor(Math.random()*states.length)]
-
-reels.forEach(id=>{
-document.getElementById(id).innerText=result
-})
-
-/* 🔥 NACH Animation speichern */
-saveSpin(user,result)
-
-/* Button wieder aktivieren */
-btn.disabled = false
-
-}
-
-},80)
-
-}
-
-
-
-/* 💾 SPEICHERN */
-
-async function saveSpin(user,result){
-
-await window.addDoc(
-window.collection(window.db,"spins"),
-{
-user:user,
-result:result,
-date:today(),
-timestamp: new Date().getTime()
-})
-
-await loadStats()
-
-}
-
-/* 📊 STATISTIK */
+/* 🔄 LOAD STATS */
 
 async function loadStats(){
 
-let snap=await window.getDocs(
-window.collection(window.db,"spins")
-)
+let snap=await window.getDocs(window.collection(window.db,"spins"))
 
 let count={}
 states.forEach(s=>count[s]=0)
@@ -281,51 +182,108 @@ chartInstance=new Chart(ctx,{
 type:"bar",
 data:{
 labels:Object.keys(count),
-datasets:[{
-data:Object.values(count)
-}]
+datasets:[{data:Object.values(count)}]
 },
 options:{
 responsive:true,
-scales:{
-y:{beginAtZero:true}
-},
-plugins:{
-legend:{display:false}
-}
+scales:{y:{beginAtZero:true}},
+plugins:{legend:{display:false}}
 }
 })
 
 }
 
-/* 🏆 GEWINNER */
+/* 🎰 SPIN */
 
-function checkWinner(count){
+async function spin(){
 
-let total=0
-Object.values(count).forEach(v=>total+=v)
+let btn=document.getElementById("spinBtn")
+btn.disabled=true
 
-if(total < users.length){
+let user=document.getElementById("user").value
+
+let q=window.query(
+window.collection(window.db,"spins"),
+window.where("user","==",user),
+window.where("date","==",today())
+)
+
+let snap=await window.getDocs(q)
+
+if(!snap.empty){
+alert("Du Schlingel häsch hüt schu dreiht!")
 return
 }
 
-let winner = Object.keys(count).reduce((a,b)=>
-count[a]>count[b]?a:b
-)
+/* Animation */
 
-let div=document.getElementById("winner")
+let reels=["r1","r2","r3"]
+let spins=0
 
-div.style.display="block"
-div.innerText="🏆 GEWINNER: " + winner.toUpperCase()
+let anim=setInterval(()=>{
+
+reels.forEach(id=>{
+document.getElementById(id).innerText=
+states[Math.floor(Math.random()*states.length)]
+})
+
+spins++
+
+if(spins>20){
+
+clearInterval(anim)
+
+let result=states[Math.floor(Math.random()*states.length)]
+
+reels.forEach(id=>{
+document.getElementById(id).innerText=result
+})
+
+saveSpin(user,result)
+btn.disabled=false
 
 }
 
-/* 🔄 AUTO REFRESH */
+},80)
 
+}
+
+/* 💾 SAVE */
+
+async function saveSpin(user,result){
+
+await window.addDoc(
+window.collection(window.db,"spins"),
+{
+user:user,
+result:result,
+date:today()
+})
+
+loadStats()
+
+}
+
+/* 🏆 WINNER */
+
+function checkWinner(count){
+
+let total=Object.values(count).reduce((a,b)=>a+b,0)
+
+if(total<users.length)return
+
+let winner=Object.keys(count).reduce((a,b)=>count[a]>count[b]?a:b)
+
+let div=document.getElementById("winner")
+div.style.display="block"
+div.innerText="🏆 GEWINNER: "+winner.toUpperCase()
+
+}
+
+/* 🔄 AUTO UPDATE */
 setInterval(loadStats,5000)
 
 /* START */
-
 loadStats()
 
 </script>
