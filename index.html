@@ -2,13 +2,40 @@
 <html>
 <head>
 <meta charset="UTF-8">
-
-<!-- 🔥 wichtig für Mobile -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>🎰 Mittagässe</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- 🔥 FIREBASE -->
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+/* 👉 HIER DEINE CONFIG EINSETZEN */
+const firebaseConfig = {
+  apiKey: "AIzaSyBj3oyj0VOe1NSOv_ifjCe6fMqNuAJav4k",
+  authDomain: "budefoode-2da04.firebaseapp.com",
+  projectId: "budefoode-2da04",
+  storageBucket: "budefoode-2da04.firebasestorage.app",
+  messagingSenderId: "561212276934",
+  appId: "1:561212276934:web:7c294ae7bd2a64e739d7c7",
+  measurementId: "G-ZWNQG0XNE2"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+window.db=db
+window.collection=collection
+window.addDoc=addDoc
+window.getDocs=getDocs
+window.query=query
+window.where=where
+
+</script>
 
 <style>
 
@@ -22,74 +49,48 @@ padding:10px;
 }
 
 h1{
-margin-top:10px;
 font-size:28px;
 color:#facc15;
 text-shadow:0 0 10px #facc15;
 }
 
-/* SLOT MACHINE */
+/* SLOT */
 
 .slot-machine{
 margin:20px auto;
 padding:15px;
 background:#1f2937;
 border-radius:20px;
-box-shadow:0 0 20px rgba(0,0,0,0.8);
 width:100%;
 max-width:350px;
 }
 
 .reels{
 display:flex;
-justify-content:space-between;
 gap:8px;
-margin:20px 0;
 }
 
 .reel{
-background:#000;
 flex:1;
 height:70px;
+background:black;
 display:flex;
 align-items:center;
 justify-content:center;
-font-size:14px;
 border-radius:10px;
-box-shadow:inset 0 0 10px #000;
-padding:5px;
-text-align:center;
+font-size:14px;
 }
 
 /* BUTTON */
 
 button{
 width:100%;
-max-width:300px;
 padding:15px;
 font-size:18px;
 border:none;
 border-radius:10px;
-cursor:pointer;
 background:#facc15;
-color:black;
-font-weight:bold;
-box-shadow:0 0 10px #facc15;
-}
-
-button:active{
-transform:scale(0.95);
-}
-
-/* SELECT */
-
-select{
-width:100%;
-max-width:300px;
-padding:12px;
-font-size:16px;
 margin-top:10px;
-border-radius:8px;
 }
 
 /* WINNER */
@@ -98,7 +99,7 @@ border-radius:8px;
 font-size:28px;
 margin-top:20px;
 color:#22c55e;
-text-shadow:0 0 10px #22c55e, 0 0 20px #22c55e;
+text-shadow:0 0 15px #22c55e;
 display:none;
 }
 
@@ -109,7 +110,6 @@ background:white;
 border-radius:10px;
 margin-top:20px;
 width:100% !important;
-height:auto !important;
 }
 
 </style>
@@ -160,23 +160,34 @@ const users=[
 "Fabio","Jonas","Noah","Patrick","Christian"
 ]
 
-let results=JSON.parse(localStorage.getItem("results"))||[]
-let plays=JSON.parse(localStorage.getItem("plays"))||{}
-
 let chartInstance=null
 
 function today(){
 return new Date().toISOString().slice(0,10)
 }
 
-function spin(){
+/* 🎰 SPIN */
+
+async function spin(){
 
 let user=document.getElementById("user").value
 
-if(plays[user]==today()){
+/* prüfen ob heute schon gespielt */
+
+let q=window.query(
+window.collection(window.db,"spins"),
+window.where("user","==",user),
+window.where("date","==",today())
+)
+
+let check=await window.getDocs(q)
+
+if(!check.empty){
 alert("Du Schlingel häsch hüt schu dreiht!")
 return
 }
+
+/* animation */
 
 let reels=["r1","r2","r3"]
 let spins=0
@@ -196,18 +207,11 @@ clearInterval(anim)
 
 let result=states[Math.floor(Math.random()*states.length)]
 
-document.getElementById("r1").innerText=result
-document.getElementById("r2").innerText=result
-document.getElementById("r3").innerText=result
+reels.forEach(id=>{
+document.getElementById(id).innerText=result
+})
 
-results.push(result)
-plays[user]=today()
-
-localStorage.setItem("results",JSON.stringify(results))
-localStorage.setItem("plays",JSON.stringify(plays))
-
-updateChart()
-checkWinner()
+saveSpin(user,result)
 
 }
 
@@ -215,12 +219,50 @@ checkWinner()
 
 }
 
-function updateChart(){
+/* 💾 SPEICHERN */
+
+async function saveSpin(user,result){
+
+await window.addDoc(
+window.collection(window.db,"spins"),
+{
+user:user,
+result:result,
+date:today()
+})
+
+loadStats()
+
+}
+
+/* 📊 STATISTIK */
+
+async function loadStats(){
+
+let snap=await window.getDocs(
+window.collection(window.db,"spins")
+)
 
 let count={}
 states.forEach(s=>count[s]=0)
 
-results.forEach(r=>count[r]++)
+let todayDate=today()
+
+snap.forEach(doc=>{
+let d=doc.data()
+if(d.date===todayDate){
+count[d.result]++
+}
+})
+
+updateChart(count)
+checkWinner(count)
+
+}
+
+/* 📊 CHART */
+
+function updateChart(count){
 
 let ctx=document.getElementById("chart").getContext("2d")
 
@@ -249,35 +291,40 @@ legend:{display:false}
 
 }
 
-function checkWinner(){
+/* 🏆 GEWINNER */
+
+function checkWinner(count){
 
 let todayDate=today()
 
-let playedToday = Object.values(plays)
-.filter(d=>d===todayDate).length
+let played=0
 
-if(playedToday < users.length){
+Object.values(count).forEach(v=>{
+played+=v
+})
+
+if(played < users.length){
 return
 }
 
-let count={}
-states.forEach(s=>count[s]=0)
-
-results.forEach(r=>count[r]++)
-
-let winnerState = Object.keys(count).reduce((a,b)=>
-count[a] > count[b] ? a : b
+let winner = Object.keys(count).reduce((a,b)=>
+count[a]>count[b]?a:b
 )
 
-let winnerDiv=document.getElementById("winner")
+let div=document.getElementById("winner")
 
-winnerDiv.style.display="block"
-winnerDiv.innerText="🏆 GEWINNER: " + winnerState.toUpperCase()
+div.style.display="block"
+div.innerText="🏆 GEWINNER: " + winner.toUpperCase()
 
 }
 
-updateChart()
-checkWinner()
+/* 🔄 AUTO REFRESH */
+
+setInterval(loadStats,5000)
+
+/* START */
+
+loadStats()
 
 </script>
 
