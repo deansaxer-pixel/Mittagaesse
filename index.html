@@ -8,33 +8,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-/* 🔥 DEINE FIREBASE CONFIG */
-const firebaseConfig = {
-  apiKey: "AIzaSyBj3oyj0VOe1NSOv_ifjCe6fMqNuAJav4k",
-  authDomain: "budefoode-2da04.firebaseapp.com",
-  projectId: "budefoode-2da04",
-  storageBucket: "budefoode-2da04.firebasestorage.app",
-  messagingSenderId: "561212276934",
-  appId: "1:561212276934:web:7c294ae7bd2a64e739d7c7",
-  measurementId: "G-ZWNQG0XNE2"
-};
-
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-window.db = db;
-window.collection = collection;
-window.addDoc = addDoc;
-window.getDocs = getDocs;
-window.query = query;
-window.where = where;
-</script>
-
 <style>
 body{
 font-family:Arial;
@@ -45,9 +18,7 @@ margin:0;
 padding:10px;
 }
 
-h1{
-color:#facc15;
-}
+h1{color:#facc15;}
 
 .slot-machine{
 margin:20px auto;
@@ -119,23 +90,42 @@ margin-top:20px;
 <div class="reel" id="r2">🍽️</div>
 <div class="reel" id="r3">🍽️</div>
 </div>
-<button id="spinBtn" onclick="spin()">🎰 DREHEN</button>
+<button id="spinBtn">🎰 DREHEN</button>
 </div>
 
 <div id="winner"></div>
 <canvas id="chart"></canvas>
 
-<script>
+<script type="module">
 
-const states=[
-"Sterne","S'Gocht","Wiesetal","Thai",
-"Krüüz","Pizza","Döner","Mägges"
-]
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+/* 🔥 DEINE FIREBASE CONFIG */
+const firebaseConfig = {
+  apiKey: "AIzaSyBj3oyj0VOe1NSOv_ifjCe6fMqNuAJav4k",
+  authDomain: "budefoode-2da04.firebaseapp.com",
+  projectId: "budefoode-2da04",
+  storageBucket: "budefoode-2da04.firebasestorage.app",
+  messagingSenderId: "561212276934",
+  appId: "1:561212276934:web:7c294ae7bd2a64e739d7c7",
+  measurementId: "G-ZWNQG0XNE2"
+};
+
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+/* DATA */
+
+const states=["Sterne","S'Gocht","Wiesetal","Thai","Krüüz","Pizza","Döner","Mägges"]
 
 const users=[
 "Dean","Borghi","Claudio","Düüdi","Hannes",
 "Fabio","Jonas","Noah","Patrick","Christian"
 ]
+
+
 let chartInstance=null
 
 function today(){
@@ -143,50 +133,114 @@ let d=new Date()
 return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,'0')+"-"+String(d.getUTCDate()).padStart(2,'0')
 }
 
-/* 🔒 LOCAL LOCK (gegen Refresh Cheat) */
-function hasPlayedLocal(user){
+/* LOCAL LOCK */
+
+function hasPlayed(user){
 let data=JSON.parse(localStorage.getItem("plays")||"{}")
 return data[user]===today()
 }
 
-function setPlayedLocal(user){
+function setPlayed(user){
 let data=JSON.parse(localStorage.getItem("plays")||"{}")
 data[user]=today()
 localStorage.setItem("plays",JSON.stringify(data))
 }
 
-/* 🎰 SPIN */
+/* CHART */
 
-async function spin(){
+function updateChart(count){
+
+let ctx=document.getElementById("chart").getContext("2d")
+
+if(chartInstance){
+chartInstance.destroy()
+}
+
+chartInstance=new Chart(ctx,{
+type:"bar",
+data:{
+labels:Object.keys(count),
+datasets:[{data:Object.values(count)}]
+},
+options:{
+responsive:true,
+scales:{y:{beginAtZero:true}},
+plugins:{legend:{display:false}}
+}
+})
+}
+
+/* LOAD */
+
+async function loadStats(){
+
+let snap=await getDocs(collection(db,"spins"))
+
+let count={}
+states.forEach(s=>count[s]=0)
+
+let todayDate=today()
+
+snap.forEach(doc=>{
+let d=doc.data()
+if(d.date===todayDate){
+count[d.result]++
+}
+})
+
+updateChart(count)
+checkWinner(count)
+
+}
+
+/* WINNER */
+
+function checkWinner(count){
+
+let total=Object.values(count).reduce((a,b)=>a+b,0)
+
+if(total<users.length)return
+
+let winner=Object.keys(count).reduce((a,b)=>count[a]>count[b]?a:b)
+
+let div=document.getElementById("winner")
+div.style.display="block"
+div.innerText="🏆 GEWINNER: "+winner.toUpperCase()
+}
+
+/* SPIN */
+
+document.getElementById("spinBtn").addEventListener("click", async ()=>{
 
 let user=document.getElementById("user").value
 let btn=document.getElementById("spinBtn")
 
-/* 🔒 LOCAL CHECK */
-if(hasPlayedLocal(user)){
-alert("Du hast heute schon gedreht")
+if(hasPlayed(user)){
+alert("Du Schlingel häsch hüt schu dreiht!")
 return
 }
 
+
 btn.disabled=true
 
-/* 🔒 FIREBASE CHECK (pro User!) */
-let q=window.query(
-window.collection(window.db,"spins"),
-window.where("user","==",user),
-window.where("date","==",today())
+/* FIREBASE CHECK */
+
+let q=query(
+collection(db,"spins"),
+where("user","==",user),
+where("date","==",today())
 )
 
-let snap=await window.getDocs(q)
+let snap=await getDocs(q)
 
 if(!snap.empty){
-alert("Du Schlingel häsch hüt schu dreiht!")
-setPlayedLocal(user)
+alert("Du hast heute schon gedreht")
+setPlayed(user)
 btn.disabled=false
 return
 }
 
-/* 🎰 Animation */
+/* ANIMATION */
 
 let reels=["r1","r2","r3"]
 let spins=0
@@ -210,92 +264,27 @@ reels.forEach(id=>{
 document.getElementById(id).innerText=result
 })
 
-/* 🔥 speichern */
-await window.addDoc(
-window.collection(window.db,"spins"),
-{
+/* SAVE */
+
+await addDoc(collection(db,"spins"),{
 user:user,
 result:result,
 date:today()
 })
 
-/* 🔒 local sperre setzen */
-setPlayedLocal(user)
+setPlayed(user)
 
-loadStats()
+await loadStats()
+
 btn.disabled=false
 
 }
 
 },80)
 
-}
-
-/* 📊 LOAD STATS */
-
-async function loadStats(){
-
-let snap=await window.getDocs(window.collection(window.db,"spins"))
-
-let count={}
-states.forEach(s=>count[s]=0)
-
-let todayDate=today()
-
-snap.forEach(doc=>{
-let d=doc.data()
-if(d.date===todayDate){
-count[d.result]++
-}
 })
 
-updateChart(count)
-checkWinner(count)
-
-}
-
-/* 📊 CHART */
-
-function updateChart(count){
-
-let ctx=document.getElementById("chart").getContext("2d")
-
-if(chartInstance){
-chartInstance.destroy()
-}
-
-chartInstance=new Chart(ctx,{
-type:"bar",
-data:{
-labels:Object.keys(count),
-datasets:[{data:Object.values(count)}]
-},
-options:{
-responsive:true,
-scales:{y:{beginAtZero:true}},
-plugins:{legend:{display:false}}
-}
-})
-
-}
-
-/* 🏆 WINNER */
-
-function checkWinner(count){
-
-let total=Object.values(count).reduce((a,b)=>a+b,0)
-
-if(total<users.length)return
-
-let winner=Object.keys(count).reduce((a,b)=>count[a]>count[b]?a:b)
-
-let div=document.getElementById("winner")
-div.style.display="block"
-div.innerText="🏆 GEWINNER: "+winner.toUpperCase()
-
-}
-
-/* 🔄 AUTO UPDATE */
+/* AUTO UPDATE */
 setInterval(loadStats,5000)
 
 /* START */
