@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🎰 Mittagässe</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <style>
 body{font-family:Arial;background:#0b0f1a;color:white;text-align:center;margin:0;padding:10px;}
 h1{color:#facc15;}
@@ -17,7 +16,6 @@ button{width:100%;padding:15px;font-size:18px;background:#facc15;border:none;bor
 canvas{background:white;margin-top:20px;}
 </style>
 </head>
-
 <body>
 
 <h1>🎰 Mittagässe</h1>
@@ -50,7 +48,7 @@ canvas{background:white;margin-top:20px;}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 /* FIREBASE CONFIG */
 const firebaseConfig = {
@@ -75,19 +73,18 @@ const users=[
 
 let chartInstance = null;
 
-/* UTC DATE */
 function today(){
-  let d = new Date();
+  const d = new Date();
   return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,'0')+"-"+String(d.getUTCDate()).padStart(2,'0');
 }
 
-/* LOCAL LOCK */
+/* LOCAL STORAGE LOCK */
 function hasPlayed(user){
-  let data = JSON.parse(localStorage.getItem("plays")||"{}");
+  const data = JSON.parse(localStorage.getItem("plays")||"{}");
   return data[user] === today();
 }
 function setPlayed(user){
-  let data = JSON.parse(localStorage.getItem("plays")||"{}");
+  const data = JSON.parse(localStorage.getItem("plays")||"{}");
   data[user] = today();
   localStorage.setItem("plays", JSON.stringify(data));
 }
@@ -110,11 +107,10 @@ function updateChart(count){
 async function loadStats(){
   const snap = await getDocs(collection(db,"spins"));
   let count = {}; states.forEach(s=>count[s]=0);
-  let todayDate = today();
   let playedUsers = new Set();
   snap.forEach(doc=>{
     const d = doc.data();
-    if(d.date === todayDate){
+    if(d.date === today()){
       count[d.result]++;
       playedUsers.add(d.user);
     }
@@ -126,32 +122,18 @@ async function loadStats(){
 /* CHECK WINNER */
 function checkWinner(count, playedUsers){
   if(playedUsers.size < users.length) return; // noch nicht alle gespielt
-  let winner = Object.keys(count).reduce((a,b)=>count[a]>count[b]?a:b);
+  const winner = Object.keys(count).reduce((a,b)=>count[a]>count[b]?a:b);
   const div = document.getElementById("winner");
-  div.style.display="block";
-  div.innerText = "🏆 GEWINNER: " + winner.toUpperCase();
+  div.style.display = "block";
+  div.innerText = "🏆 GEWINNER: "+winner.toUpperCase();
 }
 
-/* SPIN LOGIC */
+/* SPIN BUTTON */
 document.getElementById("spinBtn").addEventListener("click", async ()=>{
   const user = document.getElementById("user").value;
   const btn = document.getElementById("spinBtn");
-  if(hasPlayed(user)){
-    alert("Du Schlingel häsch hüt schu dreiht!");
-    return;
-  }
-
+  if(hasPlayed(user)){alert("Du Schlingel häsch hüt schu dreiht!"); return;}
   btn.disabled = true;
-
-  // Firebase check
-  const q = query(collection(db,"spins"), where("user","==",user), where("date","==",today()));
-  const snap = await getDocs(q);
-  if(!snap.empty){
-    alert("Du hast heute schon gedreht");
-    setPlayed(user);
-    btn.disabled = false;
-    return;
-  }
 
   // Animation
   const reels = ["r1","r2","r3"];
@@ -163,11 +145,11 @@ document.getElementById("spinBtn").addEventListener("click", async ()=>{
       clearInterval(anim);
       const result = states[Math.floor(Math.random()*states.length)];
       reels.forEach(id=>{document.getElementById(id).innerText = result;});
-      // Save result
-      await addDoc(collection(db,"spins"), {user:user, result:result, date:today()});
+      // SAVE per User pro Tag
+      await setDoc(doc(db,"spins",user+"_"+today()),{user,user,result,date:today()});
       setPlayed(user);
       await loadStats();
-      btn.disabled=false;
+      btn.disabled = false;
     }
   },80);
 });
@@ -176,6 +158,5 @@ document.getElementById("spinBtn").addEventListener("click", async ()=>{
 setInterval(loadStats,5000);
 loadStats();
 </script>
-
 </body>
 </html>
