@@ -166,29 +166,23 @@ String(d.getUTCDate()).padStart(2,'0')
 async function spin(){
 
 let user=document.getElementById("user").value
+let todayDate = today()
 
-let snap=await window.getDocs(
-window.collection(window.db,"spins")
+/* 🔒 DIREKTE FIREBASE ABFRAGE */
+let q = window.query(
+window.collection(window.db,"spins"),
+window.where("user","==",user),
+window.where("date","==",todayDate)
 )
 
-let todayDate=today()
+let snap = await window.getDocs(q)
 
-let alreadyPlayed=false
-
-snap.forEach(doc=>{
-let d=doc.data()
-if(d.user===user && d.date===todayDate){
-alreadyPlayed=true
-}
-})
-
-if(alreadyPlayed){
+if(!snap.empty){
 alert("Du Schlingel häsch hüt schu dreiht!")
 return
 }
 
-
-/* animation */
+/* 🎰 ANIMATION */
 
 let reels=["r1","r2","r3"]
 let spins=0
@@ -212,13 +206,15 @@ reels.forEach(id=>{
 document.getElementById(id).innerText=result
 })
 
-saveSpin(user,result)
+/* 🔒 WICHTIG: WARTEN BIS SPEICHERUNG FERTIG */
+await saveSpin(user,result)
 
 }
 
 },80)
 
 }
+
 
 /* 💾 SPEICHERN */
 
@@ -233,7 +229,7 @@ date:today(),
 timestamp: new Date().getTime()
 })
 
-loadStats()
+await loadStats()
 
 }
 
