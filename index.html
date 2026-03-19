@@ -130,7 +130,7 @@ width:100% !important;
 <div class="reel" id="r3">🍽️</div>
 </div>
 
-<button onclick="spin()">🎰 DREHEN</button>
+<button onclick="">🎰 DREHEN</button>
 
 </div>
 
@@ -168,7 +168,8 @@ async function spin(){
 let user=document.getElementById("user").value
 let todayDate = today()
 
-/* 🔒 DIREKTE FIREBASE ABFRAGE */
+/* 🔒 Prüfen ob schon gespielt */
+
 let q = window.query(
 window.collection(window.db,"spins"),
 window.where("user","==",user),
@@ -182,7 +183,11 @@ alert("Du Schlingel häsch hüt schu dreiht!")
 return
 }
 
-/* 🎰 ANIMATION */
+/* 🔘 Button deaktivieren */
+let btn = document.querySelector("button")
+btn.disabled = true
+
+/* 🎰 Animation */
 
 let reels=["r1","r2","r3"]
 let spins=0
@@ -206,14 +211,18 @@ reels.forEach(id=>{
 document.getElementById(id).innerText=result
 })
 
-/* 🔒 WICHTIG: WARTEN BIS SPEICHERUNG FERTIG */
-await saveSpin(user,result)
+/* 🔥 NACH Animation speichern */
+saveSpin(user,result)
+
+/* Button wieder aktivieren */
+btn.disabled = false
 
 }
 
 },80)
 
 }
+
 
 
 /* 💾 SPEICHERN */
