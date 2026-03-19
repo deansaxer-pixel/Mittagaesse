@@ -25,7 +25,7 @@ const firebaseConfig = {
   measurementId: "G-ZWNQG0XNE2"
 };
 
-const app = initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig)n
 const db = getFirestore(app);
 
 window.db=db
@@ -172,22 +172,28 @@ async function spin(){
 
 let user=document.getElementById("user").value
 
-/* prüfen ob heute schon gespielt */
-
-let q=window.query(
-window.collection(window.db,"spins"),
-window.where("user","==",user),
-window.where("date","==",today())
+let snap=await window.getDocs(
+window.collection(window.db,"spins")
 )
 
-let check=await window.getDocs(q)
+let todayDate=today()
 
-if(!check.empty){
+let alreadyPlayed = false
+
+snap.forEach(doc=>{
+let d=doc.data()
+
+if(d.user===user && d.date===todayDate){
+alreadyPlayed = true
+}
+})
+
+if(alreadyPlayed){
 alert("Du Schlingel häsch hüt schu dreiht!")
 return
 }
 
-/* animation */
+/* SLOT ANIMATION */
 
 let reels=["r1","r2","r3"]
 let spins=0
@@ -219,6 +225,7 @@ saveSpin(user,result)
 
 }
 
+
 /* 💾 SPEICHERN */
 
 async function saveSpin(user,result){
@@ -229,6 +236,7 @@ window.collection(window.db,"spins"),
 user:user,
 result:result,
 date:today()
+timestamp: new Date().getTime()
 })
 
 loadStats()
