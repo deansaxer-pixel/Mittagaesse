@@ -11,12 +11,13 @@ body{font-family:Arial;background:#0b0f1a;color:white;text-align:center;margin:0
 h1{color:#facc15;}
 .slot-machine{margin:20px auto;padding:15px;background:#1f2937;border-radius:20px;max-width:350px;}
 .reels{display:flex;gap:8px;}
-.reel{flex:1;height:70px;background:black;display:flex;align-items:center;justify-content:center;border-radius:10px;}
-button{width:100%;padding:15px;font-size:18px;background:#facc15;border:none;border-radius:10px;}
+.reel{flex:1;height:70px;background:black;display:flex;align-items:center;justify-content:center;border-radius:10px;font-size:16px;}
+button{width:100%;padding:15px;font-size:18px;background:#facc15;border:none;border-radius:10px;margin-top:10px;}
 #winner{margin-top:20px;font-size:24px;color:#22c55e;display:none;}
 canvas{background:white;margin-top:20px;}
 </style>
 </head>
+
 <body>
 
 <h1>🎰 Mittagässe</h1>
@@ -66,83 +67,115 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 /* STATES & USERS */
-const states=["Sterne","S'Gocht","Wiesetal","Thai","Krüüz","Pizza","Döner","Mägges"];
+const states = ["Sterne","S'Gocht","Wiesetal","Thai","Krüüz","Pizza","Döner","Mägges"];
 const users=[
 "Dean","Borghi","Claudio","Düüdi","Hannes",
 "Fabio","Jonas","Noah","Patrick","Christian"
 ]
-let chartInstance=null;
 
-function today(){let d=new Date();return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,'0')+"-"+String(d.getUTCDate()).padStart(2,'0');}
+let chartInstance = null;
 
-/* LOCAL STORAGE LOCK */
-function hasPlayed(user){let data=JSON.parse(localStorage.getItem("plays")||"{}");return data[user]===today();}
-function setPlayed(user){let data=JSON.parse(localStorage.getItem("plays")||"{}");data[user]=today();localStorage.setItem("plays",JSON.stringify(data));}
+/* UTC DATE */
+function today(){
+  let d = new Date();
+  return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,'0')+"-"+String(d.getUTCDate()).padStart(2,'0');
+}
 
-/* CHART */
+/* LOCAL LOCK */
+function hasPlayed(user){
+  let data = JSON.parse(localStorage.getItem("plays")||"{}");
+  return data[user] === today();
+}
+function setPlayed(user){
+  let data = JSON.parse(localStorage.getItem("plays")||"{}");
+  data[user] = today();
+  localStorage.setItem("plays", JSON.stringify(data));
+}
+
+/* UPDATE CHART */
 function updateChart(count){
-let ctx=document.getElementById("chart").getContext("2d");
-if(chartInstance) chartInstance.destroy();
-chartInstance=new Chart(ctx,{type:"bar",data:{labels:Object.keys(count),datasets:[{data:Object.values(count)}]},options:{responsive:true,scales:{y:{beginAtZero:true}},plugins:{legend:{display:false}}}});
+  const ctx = document.getElementById("chart").getContext("2d");
+  if(chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(ctx,{
+    type:"bar",
+    data:{
+      labels:Object.keys(count),
+      datasets:[{data:Object.values(count)}]
+    },
+    options:{responsive:true,scales:{y:{beginAtZero:true}},plugins:{legend:{display:false}}}
+  });
 }
 
 /* LOAD STATS */
 async function loadStats(){
-let snap=await getDocs(collection(db,"spins"));
-let count={}; states.forEach(s=>count[s]=0);
-let todayDate=today();
-snap.forEach(doc=>{let d=doc.data(); if(d.date===todayDate) count[d.result]++;});
-updateChart(count);
-checkWinner(count);
+  const snap = await getDocs(collection(db,"spins"));
+  let count = {}; states.forEach(s=>count[s]=0);
+  let todayDate = today();
+  let playedUsers = new Set();
+  snap.forEach(doc=>{
+    const d = doc.data();
+    if(d.date === todayDate){
+      count[d.result]++;
+      playedUsers.add(d.user);
+    }
+  });
+  updateChart(count);
+  checkWinner(count, playedUsers);
 }
 
-/* WINNER */
-function checkWinner(count){
-let total=Object.values(count).reduce((a,b)=>a+b,0);
-if(total<users.length) return;
-let winner=Object.keys(count).reduce((a,b)=>count[a]>count[b]?a:b);
-let div=document.getElementById("winner");
-div.style.display="block"; div.innerText="🏆 GEWINNER: "+winner.toUpperCase();
+/* CHECK WINNER */
+function checkWinner(count, playedUsers){
+  if(playedUsers.size < users.length) return; // noch nicht alle gespielt
+  let winner = Object.keys(count).reduce((a,b)=>count[a]>count[b]?a:b);
+  const div = document.getElementById("winner");
+  div.style.display="block";
+  div.innerText = "🏆 GEWINNER: " + winner.toUpperCase();
 }
 
-/* SPIN BUTTON */
+/* SPIN LOGIC */
 document.getElementById("spinBtn").addEventListener("click", async ()=>{
-let user=document.getElementById("user").value;
-let btn=document.getElementById("spinBtn");
+  const user = document.getElementById("user").value;
+  const btn = document.getElementById("spinBtn");
+  if(hasPlayed(user)){
+    alert("Du Schlingel häsch hüt schu dreiht!");
+    return;
+  }
 
-if(hasPlayed(user)){alert("Du hast heute schon gedreht"); return;}
-btn.disabled=true;
+  btn.disabled = true;
 
-/* FIREBASE CHECK */
-let q=query(collection(db,"spins"),where("user","==",user),where("date","==",today()));
-let snap=await getDocs(q);
-if(!snap.empty){alert("Du Schlingel häsch hüt schu dreiht!"); setPlayed(user); btn.disabled=false; return;}
+  // Firebase check
+  const q = query(collection(db,"spins"), where("user","==",user), where("date","==",today()));
+  const snap = await getDocs(q);
+  if(!snap.empty){
+    alert("Du hast heute schon gedreht");
+    setPlayed(user);
+    btn.disabled = false;
+    return;
+  }
 
-/* ANIMATION */
-let reels=["r1","r2","r3"];
-let spins=0;
-
-let anim=setInterval(async ()=>{
-reels.forEach(id=>{document.getElementById(id).innerText=states[Math.floor(Math.random()*states.length)];});
-spins++;
-if(spins>20){
-clearInterval(anim);
-let result=states[Math.floor(Math.random()*states.length)];
-reels.forEach(id=>{document.getElementById(id).innerText=result;});
-/* SAVE AFTER ANIMATION */
-await addDoc(collection(db,"spins"),{user:user,result:result,date:today()});
-setPlayed(user);
-await loadStats();
-btn.disabled=false;
-}
-},80);
-
+  // Animation
+  const reels = ["r1","r2","r3"];
+  let spins = 0;
+  const anim = setInterval(async ()=>{
+    reels.forEach(id=>{document.getElementById(id).innerText = states[Math.floor(Math.random()*states.length)];});
+    spins++;
+    if(spins>20){
+      clearInterval(anim);
+      const result = states[Math.floor(Math.random()*states.length)];
+      reels.forEach(id=>{document.getElementById(id).innerText = result;});
+      // Save result
+      await addDoc(collection(db,"spins"), {user:user, result:result, date:today()});
+      setPlayed(user);
+      await loadStats();
+      btn.disabled=false;
+    }
+  },80);
 });
 
 /* AUTO UPDATE */
 setInterval(loadStats,5000);
 loadStats();
-
 </script>
+
 </body>
 </html>
