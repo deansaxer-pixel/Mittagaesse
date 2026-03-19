@@ -136,16 +136,102 @@ const users=[
 "Dean","Borghi","Claudio","Düüdi","Hannes",
 "Fabio","Jonas","Noah","Patrick","Christian"
 ]
-
 let chartInstance=null
 
-/* 🔒 UTC Datum */
 function today(){
 let d=new Date()
 return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,'0')+"-"+String(d.getUTCDate()).padStart(2,'0')
 }
 
-/* 🔄 LOAD STATS */
+/* 🔒 LOCAL LOCK (gegen Refresh Cheat) */
+function hasPlayedLocal(user){
+let data=JSON.parse(localStorage.getItem("plays")||"{}")
+return data[user]===today()
+}
+
+function setPlayedLocal(user){
+let data=JSON.parse(localStorage.getItem("plays")||"{}")
+data[user]=today()
+localStorage.setItem("plays",JSON.stringify(data))
+}
+
+/* 🎰 SPIN */
+
+async function spin(){
+
+let user=document.getElementById("user").value
+let btn=document.getElementById("spinBtn")
+
+/* 🔒 LOCAL CHECK */
+if(hasPlayedLocal(user)){
+alert("Du hast heute schon gedreht")
+return
+}
+
+btn.disabled=true
+
+/* 🔒 FIREBASE CHECK (pro User!) */
+let q=window.query(
+window.collection(window.db,"spins"),
+window.where("user","==",user),
+window.where("date","==",today())
+)
+
+let snap=await window.getDocs(q)
+
+if(!snap.empty){
+alert("Du Schlingel häsch hüt schu dreiht!")
+setPlayedLocal(user)
+btn.disabled=false
+return
+}
+
+/* 🎰 Animation */
+
+let reels=["r1","r2","r3"]
+let spins=0
+
+let anim=setInterval(()=>{
+
+reels.forEach(id=>{
+document.getElementById(id).innerText=
+states[Math.floor(Math.random()*states.length)]
+})
+
+spins++
+
+if(spins>20){
+
+clearInterval(anim)
+
+let result=states[Math.floor(Math.random()*states.length)]
+
+reels.forEach(id=>{
+document.getElementById(id).innerText=result
+})
+
+/* 🔥 speichern */
+await window.addDoc(
+window.collection(window.db,"spins"),
+{
+user:user,
+result:result,
+date:today()
+})
+
+/* 🔒 local sperre setzen */
+setPlayedLocal(user)
+
+loadStats()
+btn.disabled=false
+
+}
+
+},80)
+
+}
+
+/* 📊 LOAD STATS */
 
 async function loadStats(){
 
@@ -190,77 +276,6 @@ scales:{y:{beginAtZero:true}},
 plugins:{legend:{display:false}}
 }
 })
-
-}
-
-/* 🎰 SPIN */
-
-async function spin(){
-
-let btn=document.getElementById("spinBtn")
-btn.disabled=true
-
-let user=document.getElementById("user").value
-
-let q=window.query(
-window.collection(window.db,"spins"),
-window.where("user","==",user),
-window.where("date","==",today())
-)
-
-let snap=await window.getDocs(q)
-
-if(!snap.empty){
-alert("Du Schlingel häsch hüt schu dreiht!")
-return
-}
-
-/* Animation */
-
-let reels=["r1","r2","r3"]
-let spins=0
-
-let anim=setInterval(()=>{
-
-reels.forEach(id=>{
-document.getElementById(id).innerText=
-states[Math.floor(Math.random()*states.length)]
-})
-
-spins++
-
-if(spins>20){
-
-clearInterval(anim)
-
-let result=states[Math.floor(Math.random()*states.length)]
-
-reels.forEach(id=>{
-document.getElementById(id).innerText=result
-})
-
-saveSpin(user,result)
-btn.disabled=false
-
-}
-
-},80)
-
-}
-
-/* 💾 SAVE */
-
-async function saveSpin(user,result){
-
-await window.addDoc(
-window.collection(window.db,"spins"),
-{
-user:user,
-result:result,
-date:today()
-})
-
-loadStats()
 
 }
 
