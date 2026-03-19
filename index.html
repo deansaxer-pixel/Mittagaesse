@@ -52,7 +52,7 @@ canvas{background:white;margin-top:20px;border-radius:10px;}
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 /* 🔥 FIREBASE CONFIG */
 const firebaseConfig = {
@@ -69,7 +69,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-/* STATES */
+/* DATA */
 const states=["Sterne","S'Gocht","Wiesetal","Thai","Krüüz","Pizza","Döner","Mägges"];
 const users=[
 "Dean","Borghi","Claudio","Düüdi","Hannes",
@@ -82,11 +82,18 @@ let chart;
 /* DATE */
 function today(){
 let d=new Date()
-return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,'0')+"-"+String(d.getUTCDate()).padStart(2,'0')
+return d.toISOString().slice(0,10)
 }
 
 /* CHART */
-function updateChart(count){
+function updateChart(spins){
+
+let count={}
+states.forEach(s=>count[s]=0)
+
+Object.values(spins||{}).forEach(r=>{
+count[r]++
+})
 
 let ctx=document.getElementById("chart").getContext("2d")
 
@@ -99,41 +106,35 @@ labels:states,
 datasets:[{data:states.map(s=>count[s])}]
 },
 options:{
-responsive:true,
 scales:{y:{beginAtZero:true}},
 plugins:{legend:{display:false}}
 }
 })
+
 }
 
 /* LOAD */
-async function loadStats(){
+async function load(){
 
-let snap=await getDocs(collection(db,"spins"))
+let ref=doc(db,"days",today())
+let snap=await getDoc(ref)
 
-let count={}
-states.forEach(s=>count[s]=0)
+let data=snap.exists()?snap.data():{spins:{}}
 
-let playedUsers=new Set()
-
-snap.forEach(doc=>{
-let d=doc.data()
-
-if(d.date===today()){
-count[d.result]++
-playedUsers.add(d.user)
-}
-})
-
-updateChart(count)
-checkWinner(count,playedUsers)
+updateChart(data.spins)
+checkWinner(data.spins)
 
 }
 
 /* WINNER */
-function checkWinner(count,playedUsers){
+function checkWinner(spins){
 
-if(playedUsers.size<users.length) return
+if(Object.keys(spins||{}).length<users.length) return
+
+let count={}
+states.forEach(s=>count[s]=0)
+
+Object.values(spins).forEach(r=>count[r]++)
 
 let winner=states.reduce((a,b)=>count[a]>count[b]?a:b)
 
@@ -144,23 +145,25 @@ div.innerText="🏆 GEWINNER: "+winner.toUpperCase()
 }
 
 /* SPIN */
-document.getElementById("spinBtn").addEventListener("click",async()=>{
+document.getElementById("spinBtn").addEventListener("click", async()=>{
 
 let user=document.getElementById("user").value
 let btn=document.getElementById("spinBtn")
 
-let id=today()+"_"+user
+let ref=doc(db,"days",today())
+let snap=await getDoc(ref)
 
-let docRef=doc(db,"spins",id)
-let docSnap=await getDoc(docRef)
+let data=snap.exists()?snap.data():{spins:{}}
 
-if(docSnap.exists()){
+/* CHECK */
+if(data.spins[user]){
 alert("Du Schlingel häsch hüt schu dreiht!")
 return
 }
 
 btn.disabled=true
 
+/* ANIMATION */
 let reels=["r1","r2","r3"]
 let spins=0
 
@@ -184,13 +187,11 @@ document.getElementById(id).innerText=result
 })
 
 /* SAVE */
-await setDoc(docRef,{
-user:user,
-result:result,
-date:today()
-})
+data.spins[user]=result
 
-await loadStats()
+await setDoc(ref,data)
+
+await load()
 
 btn.disabled=false
 
@@ -201,10 +202,10 @@ btn.disabled=false
 })
 
 /* AUTO REFRESH */
-setInterval(loadStats,5000)
+setInterval(load,5000)
 
 /* START */
-loadStats()
+load()
 
 </script>
 
