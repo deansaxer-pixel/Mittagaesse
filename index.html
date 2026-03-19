@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🎰 Mittagässe</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <style>
 body{font-family:Arial;background:linear-gradient(180deg,#0b0f1a,#111827);color:white;text-align:center;margin:0;padding:10px;}
 h1{margin-top:10px;font-size:28px;color:#facc15;text-shadow:0 0 10px #facc15;}
@@ -19,7 +18,6 @@ select{width:100%;max-width:300px;padding:12px;font-size:16px;margin-top:10px;bo
 canvas{background:white;border-radius:10px;margin-top:20px;width:100% !important;height:auto !important;}
 </style>
 </head>
-
 <body>
 
 <h1>🎰 Mittagässe</h1>
@@ -52,9 +50,9 @@ canvas{background:white;border-radius:10px;margin-top:20px;width:100% !important
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, doc, setDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-/* 🔥 FIREBASE CONFIG HIER EINSETZEN */
+/* 🔥 FIREBASE CONFIG */
 const firebaseConfig = {
   apiKey: "AIzaSyBj3oyj0VOe1NSOv_ifjCe6fMqNuAJav4k",
   authDomain: "budefoode-2da04.firebaseapp.com",
@@ -65,33 +63,34 @@ const firebaseConfig = {
   measurementId: "G-ZWNQG0XNE2"
 };
 
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-/* STATES & USERS */
 const states = ["Sterne","S'Gocht","Wiesetal","Thai","Krüüz","Pizza","Döner","Mägges"];
 const users=[
 "Dean","Borghi","Claudio","Düüdi","Hannes",
 "Fabio","Jonas","Noah","Patrick","Christian"
 ]
+
 let chartInstance = null;
 
 function today(){ 
-  let d = new Date(); 
+  const d = new Date(); 
   return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,'0')+"-"+String(d.getUTCDate()).padStart(2,'0');
 }
 
+// Chart aktualisieren
 function updateChart(count){
   const ctx = document.getElementById("chart").getContext("2d");
   if(chartInstance) chartInstance.destroy();
   chartInstance = new Chart(ctx,{
     type:"bar",
     data:{labels:Object.keys(count), datasets:[{data:Object.values(count)}]},
-    options:{responsive:true, scales:{y:{beginAtZero:true}}, plugins:{legend:{display:false}}}
+    options:{responsive:true,scales:{y:{beginAtZero:true}}, plugins:{legend:{display:false}}}
   });
 }
 
+// Spins laden und Chart aktualisieren
 async function loadStats(){
   const snap = await getDocs(collection(db,"spins"));
   let count = {}; states.forEach(s=>count[s]=0);
@@ -107,6 +106,7 @@ async function loadStats(){
   checkWinner(count, playedUsers);
 }
 
+// Gewinner prüfen
 function checkWinner(count, playedUsers){
   if(playedUsers.size < users.length) return;
   const winner = Object.keys(count).reduce((a,b)=>count[a]>count[b]?a:b);
@@ -115,20 +115,18 @@ function checkWinner(count, playedUsers){
   div.innerText = "🏆 GEWINNER: "+winner.toUpperCase();
 }
 
+// Spin-Button
 document.getElementById("spinBtn").addEventListener("click", async ()=>{
   const user = document.getElementById("user").value;
   const btn = document.getElementById("spinBtn");
-
-  // Prüfen ob schon gespielt
-  const docRef = doc(db,"spins", user+"_"+today());
-  const docSnap = await getDocs(collection(db,"spins"));
-  const played = Array.from(docSnap.docs).some(d=>d.id===user+"_"+today());
-  if(played){ alert("Du Schlingel häsch hüt schu dreiht!"); return; }
+  const docRef = doc(db,"spins",user+"_"+today());
+  const docSnap = await getDoc(docRef);
+  if(docSnap.exists()){ alert("Du Schlingel häsch hüt schu dreiht!"); return; }
 
   btn.disabled = true;
-
   const reels = ["r1","r2","r3"];
   let spins=0;
+
   const anim = setInterval(async ()=>{
     reels.forEach(id=>{document.getElementById(id).innerText = states[Math.floor(Math.random()*states.length)];});
     spins++;
@@ -136,19 +134,17 @@ document.getElementById("spinBtn").addEventListener("click", async ()=>{
       clearInterval(anim);
       const result = states[Math.floor(Math.random()*states.length)];
       reels.forEach(id=>{document.getElementById(id).innerText = result;});
-      // Ergebnis in Firestore speichern
-      await setDoc(doc(db,"spins",user+"_"+today()), {user, result, date:today()});
+      await setDoc(doc(db,"spins",user+"_"+today()), {user,result,date:today()});
       await loadStats();
       btn.disabled = false;
     }
   },80);
 });
 
-// Auto-refresh Chart alle 5 Sekunden
+// Chart alle 5 Sekunden aktualisieren
 setInterval(loadStats,5000);
 loadStats();
 
 </script>
-
 </body>
 </html>
