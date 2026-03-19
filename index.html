@@ -45,11 +45,27 @@ canvas{background:white;margin-top:20px;border-radius:10px;}
 </div>
 <button id="spinBtn">🎰 DREHEN</button>
 </div>
+<div id"remaining"
+style="marging-top:10px;font-size:18px;color:#facc15;"></div>
 
 <div id="winner"></div>
 <canvas id="chart"></canvas>
 
 <script type="module">
+
+function updateRemaining(spins){
+
+let remaining = users.length - Object.keys(spins || {}).length
+
+let div = document.getElementById("remaining")
+
+if(remaining > 0){
+div.innerText = "⏳ Noch " + remaining + " Person(en) fehlen"
+}else{
+div.innerText = "✅ Alle haben gedreht!"
+}
+
+}
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
